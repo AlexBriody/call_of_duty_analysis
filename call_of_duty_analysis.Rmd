@@ -1,0 +1,129 @@
+---
+title: "call_of_duty_analysis"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+install.packages('tidyverse')
+library(dplyr) 
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+df <- read.csv("/Users/alexanderbriody/Desktop/Coding Temple/Data-Analytics-Projects/Week_7/day_3/Call of Duty Reviews.csv")
+
+df
+```
+
+```{r}
+# Convert the dataframe object into a Tibbles object
+tb <- as_tibble(df)
+tb
+```
+
+```{r}
+# Cleaning the data by replacing all "." with "_" and coverting to lowercase for column names
+clean_fun <- function(x){
+  names(x) <- names(x) %>% str_replace_all("\\.", "_") %>% tolower()
+  return(x)
+}
+
+tb <- clean_fun(tb)
+
+tb
+```
+
+```{r}
+# Check for null values
+df %>% summarize(na_count = sum(is.na(df)))
+
+# Using base R:
+colSums(is.na(df))
+sum(is.na(df))
+```
+
+```{r}
+# List all column names in the tibble
+print(colnames(tb))
+```
+
+```{r}
+# Mutate a new column to understand the relationship between critic_compound_score and user_compound_score at first glance (they are continuous numerical data)
+tb <- tb %>%
+  mutate(score_difference = critic_compound_score - user_compound_score)
+
+tb
+```
+
+```{r}
+# Summarize the score_difference column
+summary_tb <- tb %>%
+  summarize(
+    count_all = n(),
+    count_positive = sum(score_difference > 0, na.rm = TRUE),
+    count_negative = sum(score_difference < 0, na.rm = TRUE),
+    max_difference = max(abs(score_difference), na.rm = TRUE),
+    min_difference = min(abs(score_difference), na.rm = TRUE)
+  )
+
+print(summary_tb)
+
+# When the difference is positive, the critic_compound_score is greater than the user_compound score. And when it's negative, it's the reverse.
+# Their difference range from .0056 to 0.6839
+```
+
+```{r}
+# Create a scatter plot using the critic_compound_score as the x variable (independent) and the user_compound score as the y variable (dependent), and color the difference.
+scatter_plot <- ggplot(tb, aes(x = critic_compound_score, y = user_compound_score, color = score_difference)) +
+  geom_point() +
+  labs(title = "Scatter Plot: Critic vs User Compound Scores",
+       x = "Critic Compound Score",
+       y = "User Compound Score",
+       color = "Score Difference") 
+
+print(scatter_plot)
+
+# There appears to be a positive correlation between the critic and user compound scores, meaning the game versions the critics liked, the users liked. But there are scores that show a large difference of "opinions." With more plots with darker colors - more negative score differences - it seems users tend to give the games higher scores than the critics.
+```
+
+```{r}
+# Calculate the correlation between the two types of scores
+# With error in using na.rm = TRUE, one must use "complete.obs" which tells R to use only complete observations
+correlation_coefficient <- cor(tb$critic_compound_score, tb$user_compound_score, use = "complete.obs")
+print(correlation_coefficient)
+
+# A correlation coefficient close to 0 indicates a weak or no linear relationship. The fact that it's negative tells me that as one variable increases, the other variable tends to decrease: on average, when the critic's compound scores for a game is higher, the user's compound score tends to be lower, and vice versa. But because the correlation coefficient is close to zero, the negative correlation is very weak. A relationship between these two variables is not significant. 
+# The coefficient also represents the estimated change in the user_compound_score for one-unit increase in the critic_compound_score.
+
+
+
+```
+
+```{r}
+# H0: There is no linear relationship between the critic compound scores and user compound scores.
+# HA: There a linear relationship between the critic compound scores and user compound scores.
+# Perform a linear regression just to flesh out any possible relationship between the two variables.
+fit <- lm(user_compound_score ~ critic_compound_score, data = tb)
+
+fit
+summary(fit)
+
+# Since the p-value of 0.825 is greater than the significance level of 0.05, we fail to reject the null hypothesis, meaning there is insufficient evidence to support a strong linear relationship between critic compound scores and user compound scores.
+
+# If the p-value was less than the chosen significance level (0.05), then you would reject the null hypothesis. If the p-value is sufficiently small, it suggests that the observed effect is unlikely to have occurred by random chance alone, and you would have evidence to support the alternative hypothesis, which is that there is a strong, linear relationship between the two variables
+
+
+```
+
+```{r}
+
+```
